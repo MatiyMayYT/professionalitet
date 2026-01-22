@@ -155,7 +155,7 @@ label start_test:
 
     # Вопрос 3: Место работы
     label question_3:
-    coach "Где бы ты предпочел(а) работать?"
+    coach "Где тебе работать предпочтительнее?"
     
     menu:
         "В офисе или учебном заведении":
@@ -430,7 +430,22 @@ init python:
     def get_cluster_short_name(cluster_key):
         """
         Возвращает короткое понятное название кластера
+        Умное приведение к заглавной первой букве для русского языка
         """
+        def smart_capitalize(text):
+            """Умное приведение к заглавной первой букве"""
+            if not text:
+                return text
+            
+            # Находим первую букву (пропускаем пробелы в начале)
+            for i, char in enumerate(text):
+                if char.isalpha():
+                    # Делаем эту букву заглавной
+                    return text[:i] + char.upper() + text[i+1:]
+            
+            # Если не нашли букв, возвращаем как есть
+            return text
+        
         if cluster_key in clusters:
             full_name = clusters[cluster_key]['name']
             
@@ -439,7 +454,7 @@ init python:
                 # Формат: Образовательный кластер 'Педагогика'
                 parts = full_name.split("'")
                 if len(parts) > 1:
-                    return parts[1]
+                    return smart_capitalize(parts[1])
             
             # Убираем длинные префиксы
             short_name = full_name
@@ -458,10 +473,9 @@ init python:
                         short_name = short_name[:-1]
                     break
             
-            return short_name
+            return smart_capitalize(short_name)
         else:
-            return cluster_key
-
+            return smart_capitalize(cluster_key)
 # Показ детальной информации о кластере
 label show_cluster_details(cluster_key):
     $ cluster_data = clusters[cluster_key]

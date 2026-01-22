@@ -5,7 +5,7 @@
 # ============================================
 # ЗАКОММЕНТИРУЙ эту строку, чтобы ВЫКЛЮЧИТЬ отладку
 # РАСКОММЕНТИРУЙ эту строку, чтобы ВКЛЮЧИТЬ отладку
-define DEBUG_MODE = True
+define DEBUG_MODE = False
 # ============================================
 
 # Импортируем данные о кластерах
@@ -107,7 +107,7 @@ label choose_guy:
     show guy at center with dissolve
     "Ты выбрал персонажа - парень."
     "Как тебя зовут?"
-    $ player_name = renpy.input("Введи своё имя:", length=20)
+    $ player_name = renpy.input("Введи своё имя (Стандартно - Максим):", length=20)
     $ player_name = player_name.strip()
     if player_name == "":
         $ player_name = "Максим"
@@ -122,7 +122,7 @@ label choose_girl:
     show girl at center with dissolve
     "Ты выбрала персонажа - девушка."
     "Как тебя зовут?"
-    $ player_name = renpy.input("Введи своё имя:", length=20)
+    $ player_name = renpy.input("Введи своё имя (Стандартно - Анна):", length=20)
     $ player_name = player_name.strip()
     if player_name == "":
         $ player_name = "Анна"
@@ -239,9 +239,16 @@ label show_cluster_info:
 # Завершение разговора
 # Завершение разговора
 label end_conversation:
-    # Скрываем логотип, если он показан
-    if renpy.get_showing("cluster_logo"):
-        hide cluster_logo with dissolve
+    
+    # Скрываем белый фон, если он показан
+    if renpy.showing("white_bg"):
+        hide white_bg with dissolve
+    
+    # Скрываем другие возможные элементы
+    if renpy.showing("cluster_bg"):
+        hide cluster_bg with dissolve
+    if renpy.showing("text"):
+        hide text with dissolve
     
     show coach at left
     if player_gender == "guy":
