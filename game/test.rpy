@@ -1,6 +1,46 @@
 # test.rpy - файл с тестом на профориентацию
 
 init python:
+  # Функция для получения пути к логотипу кластера
+    def get_cluster_logo(cluster_key):
+        """
+        Возвращает путь к изображению логотипа кластера
+        Если логотипа нет, возвращает None
+        """
+        # Маппинг ключей кластеров на имена файлов
+        logo_files = {
+            "педагогика": "педагогика",
+            "медицина": "медицина",
+            "туризм": "туризм",
+            "сельское_хозяйство": "сельское_хозяйство",
+            "легкая_промышленность": "легкая_промышленность",
+            "машиностроение": "машиностроение",
+            "агротехника": "агротехника",
+            "транспорт": "транспорт",
+            "цифровизация": "цифровизация",
+            "лесная_промышленность": "лесная_промышленность"
+        }
+        
+        if cluster_key in logo_files:
+            logo_name = logo_files[cluster_key]
+            # Проверяем разные форматы
+            possible_paths = [
+                f"logos/{logo_name}.png",
+                f"logos/{logo_name}.jpg",
+                f"logos/{logo_name}.webp",
+                f"images/logos/{logo_name}.png",
+                f"images/logos/{logo_name}.jpg"
+            ]
+            
+            # Проверяем существование файла
+            for path in possible_paths:
+                if renpy.loadable(path):
+                    return path
+            
+            # Если файл не найден, возвращаем путь для будущего использования
+            return f"logos/{logo_name}.png"
+        
+        return None
     # Функция для определения кластеров с максимальным баллом
     def get_max_score_clusters(scores):
         if not scores:
@@ -199,7 +239,7 @@ label start_test:
             $ test_scores = add_points(test_scores, ["туризм", "педагогика", "медицина"], 2)
 
     # Завершение теста
-    coach "Отлично! Ты ответил(а) на все вопросы."
+    coach "Отлично! Это все."
     coach "Сейчас я проанализирую твои ответы..."
     
     pause 2.0
@@ -426,11 +466,28 @@ init python:
 label show_cluster_details(cluster_key):
     $ cluster_data = clusters[cluster_key]
     
-    show coach at left
-    if player_gender == "guy":
-        show guy at right
+    # Получаем путь к логотипу
+    $ logo_path = get_cluster_logo(cluster_key)
+    
+    # Очищаем экран и показываем логотип на фоне
+    scene
+    
+    if logo_path and renpy.loadable(logo_path):
+        show expression logo_path as cluster_logo at center with dissolve
+        pause 0.5
+        show coach at left with moveinleft
+        if player_gender == "guy":
+            show guy at right with moveinright
+        else:
+            show girl at right with moveinright
     else:
-        show girl at right
+        # Если логотипа нет, используем стандартный фон
+        show bg
+        show coach at left with dissolve
+        if player_gender == "guy":
+            show guy at right with dissolve
+        else:
+            show girl at right with dissolve
     
     coach "Отличный выбор! Давай подробнее рассмотрим [cluster_data['name']]."
     

@@ -1,5 +1,13 @@
 ﻿# script.rpy — основной файл сценария
 
+# ============================================
+# ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ОТЛАДКИ
+# ============================================
+# ЗАКОММЕНТИРУЙ эту строку, чтобы ВЫКЛЮЧИТЬ отладку
+# РАСКОММЕНТИРУЙ эту строку, чтобы ВКЛЮЧИТЬ отладку
+define DEBUG_MODE = True
+# ============================================
+
 # Импортируем данные о кластерах
 init python:
     # Проверяем, загружены ли кластеры
@@ -45,12 +53,16 @@ label start:
         "Ошибка: данные о кластерах не загружены."
         "Пожалуйста, убедитесь, что файл clusters.rpy существует."
         return
+
+    # ПРОВЕРКА РЕЖИМА ОТЛАДКИ
+    if DEBUG_MODE:
+        jump debug_menu
     
     # Музыка на фоне
     play music "audio/Gimn.mp3"
     
     # Приветствие
-    "Добро пожаловано в новеллу про профессиональные кластеры!"
+    "Добро пожаловать!"
     "Выбери свой пол: "
 
     # Выбор персонажа
@@ -61,6 +73,34 @@ label start:
         "Девушка":
             $ player_gender = "girl"
             jump choose_girl
+
+
+label debug_menu:
+    scene bg
+    show coach at center with dissolve
+    
+    coach "Режим отладки активирован!"
+    coach "Выбери, что ты хочешь сделать:"
+    
+    menu:
+        "Пройти обычный тест (игровой режим)":
+            coach "Хорошо, запускаю обычный тест..."
+            # Отключаем отладку на время теста
+            $ temp_debug = DEBUG_MODE
+            $ DEBUG_MODE = False
+            jump start_test
+        
+        "Войти в режим отладки (выбор любого кластера)":
+            coach "Запускаю режим отладки..."
+            jump debug_mode
+        
+        "Быстрая отладка (посмотреть один кластер)":
+            coach "Запускаю быструю отладку..."
+            jump quick_debug
+        
+        "Выйти из игры":
+            coach "До свидания!"
+            return
 
 # Экран с мальчиком
 label choose_guy: 
@@ -139,7 +179,7 @@ label show_cluster_info:
     
     python:
         professions = selected_cluster['professions']
-        chunk_size = 4  # Показываем по 4 за раз
+        chunk_size = 3  # Показываем по 4 за раз
         
         # Разбиваем на части по chunk_size
         for i in range(0, len(professions), chunk_size):
@@ -157,7 +197,7 @@ label show_cluster_info:
     
     python:
         employers = selected_cluster['employers']
-        chunk_size = 4  # Показываем по 4 за раз
+        chunk_size = 3  # Показываем по 4 за раз
         
         # Разбиваем на части по chunk_size
         for i in range(0, len(employers), chunk_size):
@@ -175,7 +215,7 @@ label show_cluster_info:
     
     python:
         colleges = selected_cluster['colleges']
-        chunk_size = 4  # Показываем по 4 за раз
+        chunk_size = 3  # Показываем по 4 за раз
         
         # Разбиваем на части по chunk_size
         for i in range(0, len(colleges), chunk_size):
@@ -199,6 +239,10 @@ label show_cluster_info:
 # Завершение разговора
 # Завершение разговора
 label end_conversation:
+    # Скрываем логотип, если он показан
+    if renpy.get_showing("cluster_logo"):
+        hide cluster_logo with dissolve
+    
     show coach at left
     if player_gender == "guy":
         show guy at right
@@ -228,7 +272,6 @@ label end_conversation:
         "Пройти тест заново":
             # Сброс результатов
             $ test_scores = {key: 0 for key in test_scores}
-            $ clusters_to_show = []
             jump start_test
         "Завершить игру":
             return
