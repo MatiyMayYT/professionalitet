@@ -1,7 +1,7 @@
 # test.rpy - файл с тестом на профориентацию
 
 init python:
-  # Функция для получения пути к логотипу кластера
+    # Функция для получения пути к логотипу кластера
     def get_cluster_logo(cluster_key):
         """
         Возвращает путь к изображению логотипа кластера
@@ -41,6 +41,7 @@ init python:
             return f"logos/{logo_name}.png"
         
         return None
+    
     # Функция для определения кластеров с максимальным баллом
     def get_max_score_clusters(scores):
         if not scores:
@@ -61,31 +62,56 @@ init python:
                 scores[cluster] += points
         return scores
     
-    # Функция для получения кластеров со вторым по величине баллом
-    def get_second_best_clusters(scores, exclude_clusters):
+    # Функция для получения короткого названия кластера
+    def get_cluster_short_name(cluster_key):
         """
-        Возвращает кластеры со вторым по величине баллом
+        Возвращает короткое понятное название кластера
+        Умное приведение к заглавной первой букве для русского языка
         """
-        if not scores:
-            return []
+        def smart_capitalize(text):
+            """Умное приведение к заглавной первой букве"""
+            if not text:
+                return text
+            
+            # Находим первую букву (пропускаем пробелы в начале)
+            for i, char in enumerate(text):
+                if char.isalpha():
+                    # Делаем эту букву заглавной
+                    return text[:i] + char.upper() + text[i+1:]
+            
+            # Если не нашли букв, возвращаем как есть
+            return text
         
-        # Находим максимальный балл
-        max_score = max(scores.values())
-        
-        # Находим все кластеры, которые не в exclude_clusters
-        other_clusters = {k: v for k, v in scores.items() if k not in exclude_clusters}
-        
-        if not other_clusters:
-            return []
-        
-        # Находим максимальный балл среди оставшихся
-        second_max_score = max(other_clusters.values())
-        
-        # Находим все кластеры с этим баллом
-        second_best = [cluster for cluster, score in scores.items() 
-                        if score == second_max_score and cluster not in exclude_clusters]
-        
-        return second_best
+        if cluster_key in clusters:
+            full_name = clusters[cluster_key]['name']
+            
+            # Пытаемся извлечь короткое название
+            if "'" in full_name:
+                # Формат: Образовательный кластер 'Педагогика'
+                parts = full_name.split("'")
+                if len(parts) > 1:
+                    return smart_capitalize(parts[1])
+            
+            # Убираем длинные префиксы
+            short_name = full_name
+            prefixes = [
+                "Образовательный кластер ",
+                "Образовательно-производственный центр ",
+                "Образовательно-производственный центр '",
+                "Образовательный кластер '"
+            ]
+            
+            for prefix in prefixes:
+                if short_name.startswith(prefix):
+                    short_name = short_name.replace(prefix, "")
+                    # Убираем возможную закрывающую кавычку
+                    if short_name.endswith("'"):
+                        short_name = short_name[:-1]
+                    break
+            
+            return smart_capitalize(short_name)
+        else:
+            return smart_capitalize(cluster_key)
 
 # Переменные для хранения баллов по кластерам
 default test_scores = {
@@ -100,9 +126,6 @@ default test_scores = {
     "цифровизация": 0,
     "лесная_промышленность": 0
 }
-
-# Список максимальных кластеров для показа
-default max_clusters_list = []
 
 # Основной тест
 label start_test:
@@ -210,7 +233,7 @@ label start_test:
     
     menu:
         "Творческий подход и креативность":
-            $ test_scores = add_points(test_scores, ["легкая_промышленность", "туризм", "педагогика"], 2)
+            $ test_scores = add_points(test_scores, ["легка¤_промышленность", "туризм", "педагогика"], 2)
         
         "Точность и аккуратность":
             $ test_scores = add_points(test_scores, ["медицина", "цифровизация", "машиностроение"], 2)
@@ -245,13 +268,13 @@ label start_test:
     pause 2.0
     
     # Определяем кластеры с максимальным баллом
-    $ max_clusters_list = get_max_score_clusters(test_scores)
+    $ max_clusters = get_max_score_clusters(test_scores)
     
     # Переходим к результатам
-    jump show_max_clusters
+    jump show_results
 
-# Показ максимальных кластеров
-label show_max_clusters:
+# Показ результатов теста
+label show_results:
     show coach at left
     if player_gender == "guy":
         show guy at right
@@ -259,223 +282,83 @@ label show_max_clusters:
         show girl at right
     
     # Определяем сколько кластеров с максимальным баллом
-    $ max_clusters_count = len(max_clusters_list)
+    $ max_clusters_count = len(max_clusters)
     
     if max_clusters_count == 1:
         # Один максимальный кластер
-        $ best_cluster = max_clusters_list[0]
+        $ best_cluster = max_clusters[0]
         $ selected_cluster = clusters[best_cluster]
         
-        coach "Результаты готовы! У тебя явно выраженные склонности к одному направлению."
+        coach "Результаты готовы! У тебя лидирует одно направление."
         coach "По моему анализу, тебе идеально подходит..."
         pause 1.0
         coach "[selected_cluster['name']]!"
         
         # Показываем информацию об этом кластере
-        call show_cluster_details(best_cluster)
+        call show_cluster_details(best_cluster) from _call_show_cluster_details_2
         
-        # После показа спрашиваем, хочет ли игрок узнать о других вариантах
-        coach "Хочешь рассмотреть другие возможные направления?"
-        
-        menu:
-            "Да, показать другие варианты":
-                # Находим кластеры со вторым по величине баллом
-                $ second_best = get_second_best_clusters(test_scores, max_clusters_list)
-                if second_best:
-                    $ max_clusters_list = second_best
-                    coach "Хорошо, давай посмотрим на другие перспективные направления."
-                    jump show_max_clusters_choice
-                else:
-                    coach "К сожалению, других направлений с высоким баллом нет."
-                    jump end_conversation
-            
-            "Нет, этого достаточно":
-                jump end_conversation
+        # После показа сразу завершаем
+        coach "На этом тестирование завершено."
+        jump end_conversation
     
     else:
         # Несколько максимальных кластеров
-        coach "Результаты интересные! У тебя несколько направлений показали одинаково высокий результат."
+        coach "Результаты готовы! У тебя лидирует несколько направлений."
         
         # Сообщаем сколько кластеров
-        if max_clusters_count == 2:
-            coach "Два направления набрали максимальное количество баллов."
-        elif max_clusters_count == 3:
-            coach "Три направления набрали максимальное количество баллов."
-        else:
+        if max_clusters_count == 2 or max_clusters_count == 3 or max_clusters_count == 4:
+            coach "[max_clusters_count] направления набрали максимальное количество баллов."
+        elif max_clusters_count > 4:
             coach "[max_clusters_count] направлений набрали максимальное количество баллов."
         
-        coach "Это говорит о твоей разносторонности!"
+        coach "Какое из них ты хочешь рассмотреть подробнее?"
         
-        # Переходим к выбору
-        jump show_max_clusters_choice
+        # Переходим к выбору кластера
+        jump choose_cluster_to_view
 
-# Показ выбора из максимальных кластеров
-label show_max_clusters_choice:
+# Выбор кластера для просмотра (когда несколько максимальных)
+label choose_cluster_to_view:
     show coach at left
     if player_gender == "guy":
         show guy at right
     else:
         show girl at right
     
-    coach "Расскажу про все максимальные направления. С какого начнем?"
+    # Создаем меню выбора
+    python:
+        # Собираем варианты для меню
+        menu_items = []
+        
+        for cluster_key in max_clusters:
+            short_name = get_cluster_short_name(cluster_key)
+            menu_items.append((f"{short_name}", cluster_key))
+        
+        # Добавляем вариант "Завершить тестирование"
+        menu_items.append(("Завершить тестирование", "end_test"))
     
-    # Определяем, сколько у нас максимальных кластеров
-    $ cluster_count = len(max_clusters_list)
+    # Показываем меню
+    coach "Выбери направление для подробного изучения:"
     
-    if cluster_count == 1:
-        # Если только один кластер, просто переходим к нему
-        $ selected_cluster_key = max_clusters_list[0]
-        call show_cluster_details(selected_cluster_key)
+    $ chosen_option = renpy.display_menu(menu_items)
+    
+    # Обрабатываем выбор
+    if chosen_option == "end_test":
+        coach "Хорошо, завершаю тестирование."
         jump end_conversation
-    
-    elif cluster_count == 2:
-        # Два кластера
-        $ cluster1 = max_clusters_list[0]
-        $ cluster2 = max_clusters_list[1]
-        
-        # Получаем понятные названия
-        $ name1 = get_cluster_short_name(cluster1)
-        $ name2 = get_cluster_short_name(cluster2)
-        
-        menu:
-            "[name1]":
-                $ selected_cluster_key = cluster1
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = [cluster2]
-            
-            "[name2]":
-                $ selected_cluster_key = cluster2
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = [cluster1]
-    
-    elif cluster_count == 3:
-        # Три кластера
-        $ cluster1 = max_clusters_list[0]
-        $ cluster2 = max_clusters_list[1]
-        $ cluster3 = max_clusters_list[2]
-        
-        $ name1 = get_cluster_short_name(cluster1)
-        $ name2 = get_cluster_short_name(cluster2)
-        $ name3 = get_cluster_short_name(cluster3)
-        
-        menu:
-            "[name1]":
-                $ selected_cluster_key = cluster1
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = [cluster2, cluster3]
-            
-            "[name2]":
-                $ selected_cluster_key = cluster2
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = [cluster1, cluster3]
-            
-            "[name3]":
-                $ selected_cluster_key = cluster3
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = [cluster1, cluster2]
-    
-    elif cluster_count >= 4:
-        # Много кластеров - показываем первые 5
-        coach "Выбери направление для подробного изучения:"
-        
-        # Создаем меню для первых 5 кластеров
-        menu:
-            # Кластер 1
-            "[get_cluster_short_name(max_clusters_list[0])]" if len(max_clusters_list) > 0:
-                $ selected_cluster_key = max_clusters_list[0]
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = max_clusters_list[1:]
-            
-            # Кластер 2
-            "[get_cluster_short_name(max_clusters_list[1])]" if len(max_clusters_list) > 1:
-                $ selected_cluster_key = max_clusters_list[1]
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = [max_clusters_list[0]] + max_clusters_list[2:]
-            
-            # Кластер 3
-            "[get_cluster_short_name(max_clusters_list[2])]" if len(max_clusters_list) > 2:
-                $ selected_cluster_key = max_clusters_list[2]
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = max_clusters_list[:2] + max_clusters_list[3:]
-            
-            # Кластер 4
-            "[get_cluster_short_name(max_clusters_list[3])]" if len(max_clusters_list) > 3:
-                $ selected_cluster_key = max_clusters_list[3]
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = max_clusters_list[:3] + max_clusters_list[4:]
-            
-            # Кластер 5
-            "[get_cluster_short_name(max_clusters_list[4])]" if len(max_clusters_list) > 4:
-                $ selected_cluster_key = max_clusters_list[4]
-                call show_cluster_details(selected_cluster_key)
-                $ remaining_clusters = max_clusters_list[:4] + max_clusters_list[5:]
-    
-    # После показа спрашиваем, хочет ли игрок узнать о других максимальных кластерах
-    if 'remaining_clusters' in locals() and len(remaining_clusters) > 0:
-        coach "Хочешь послушать про другое направление, которое тоже набрало максимальное количество баллов?"
-        
-        menu:
-            "Да, рассказать про другой максимальный кластер":
-                # Обновляем список для показа
-                $ max_clusters_list = remaining_clusters
-                jump show_max_clusters_choice
-            
-            "Нет, завершить":
-                jump end_conversation
     else:
-        jump end_conversation
-
-# Функция для получения короткого названия кластера
-init python:
-    def get_cluster_short_name(cluster_key):
-        """
-        Возвращает короткое понятное название кластера
-        Умное приведение к заглавной первой букве для русского языка
-        """
-        def smart_capitalize(text):
-            """Умное приведение к заглавной первой букве"""
-            if not text:
-                return text
-            
-            # Находим первую букву (пропускаем пробелы в начале)
-            for i, char in enumerate(text):
-                if char.isalpha():
-                    # Делаем эту букву заглавной
-                    return text[:i] + char.upper() + text[i+1:]
-            
-            # Если не нашли букв, возвращаем как есть
-            return text
+        # Показываем выбранный кластер
+        call show_cluster_details(chosen_option) from _call_show_cluster_details_3
         
-        if cluster_key in clusters:
-            full_name = clusters[cluster_key]['name']
-            
-            # Пытаемся извлечь короткое название
-            if "'" in full_name:
-                # Формат: Образовательный кластер 'Педагогика'
-                parts = full_name.split("'")
-                if len(parts) > 1:
-                    return smart_capitalize(parts[1])
-            
-            # Убираем длинные префиксы
-            short_name = full_name
-            prefixes = [
-                "Образовательный кластер ",
-                "Образовательно-производственный центр ",
-                "Образовательно-производственный центр '",
-                "Образовательный кластер '"
-            ]
-            
-            for prefix in prefixes:
-                if short_name.startswith(prefix):
-                    short_name = short_name.replace(prefix, "")
-                    # Убираем возможную закрывающую кавычку
-                    if short_name.endswith("'"):
-                        short_name = short_name[:-1]
-                    break
-            
-            return smart_capitalize(short_name)
-        else:
-            return smart_capitalize(cluster_key)
+        # После показа возвращаем к выбору других кластеров
+        coach "Хочешь рассмотреть другие направления или завершить тестирование?"
+        
+        menu:
+            "Рассмотреть другие направления":
+                jump choose_cluster_to_view
+            "Завершить тестирование":
+                coach "Хорошо, завершаю тестирование."
+                jump end_conversation
+
 # Показ детальной информации о кластере
 label show_cluster_details(cluster_key):
     $ cluster_data = clusters[cluster_key]

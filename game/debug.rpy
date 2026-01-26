@@ -51,7 +51,7 @@ label debug_mode:
             jump start_test
         else:
             # Показываем выбранный кластер
-            call show_cluster_details(chosen_cluster)
+            call show_cluster_details(chosen_cluster) from _call_show_cluster_details
             
             # Спрашиваем, хочет ли продолжить отладку
             coach "Хочешь посмотреть другой кластер или завершить отладку?"
@@ -87,7 +87,7 @@ label quick_debug:
         chosen_cluster = renpy.display_menu(cluster_choices)
     
     # Показываем выбранный кластер
-    call show_cluster_details(chosen_cluster)
+    call show_cluster_details(chosen_cluster) from _call_show_cluster_details_1
     
     # Сразу завершаем
     coach "Отладка завершена. Возвращаюсь к началу игры."
