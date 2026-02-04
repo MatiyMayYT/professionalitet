@@ -233,7 +233,7 @@ label start_test:
     
     menu:
         "Творческий подход и креативность":
-            $ test_scores = add_points(test_scores, ["легка¤_промышленность", "туризм", "педагогика"], 2)
+            $ test_scores = add_points(test_scores, ["легкая_промышленность", "туризм", "педагогика"], 2)
         
         "Точность и аккуратность":
             $ test_scores = add_points(test_scores, ["медицина", "цифровизация", "машиностроение"], 2)
@@ -295,11 +295,16 @@ label show_results:
         coach "[selected_cluster['name']]!"
         
         # Показываем информацию об этом кластере
-        call show_cluster_details(best_cluster) from _call_show_cluster_details_2
+        call show_cluster_details(best_cluster) from _call_show_cluster_details_single
         
-        # После показа сразу завершаем
-        coach "На этом тестирование завершено."
-        jump end_conversation
+        # После показа предлагаем выбор
+        coach "Теперь ты можешь посмотреть все кластеры или завершить игру."
+        
+        menu:
+            "Посмотреть все кластеры":
+                jump show_all_clusters_after_test
+            "Завершить игру":
+                jump end_conversation
     
     else:
         # Несколько максимальных кластеров
@@ -332,31 +337,55 @@ label choose_cluster_to_view:
         for cluster_key in max_clusters:
             short_name = get_cluster_short_name(cluster_key)
             menu_items.append((f"{short_name}", cluster_key))
-        
-        # Добавляем вариант "Завершить тестирование"
-        menu_items.append(("Завершить тестирование", "end_test"))
     
     # Показываем меню
     coach "Выбери направление для подробного изучения:"
     
     $ chosen_option = renpy.display_menu(menu_items)
     
-    # Обрабатываем выбор
-    if chosen_option == "end_test":
-        coach "Хорошо, завершаю тестирование."
-        jump end_conversation
+    # Показываем выбранный кластер
+    call show_cluster_details(chosen_option) from _call_show_cluster_details_multiple
+    
+    # После показа предлагаем выбор
+    coach "Хочешь посмотреть все кластеры или завершить игру?"
+    
+    menu:
+        "Посмотреть все кластеры":
+            jump show_all_clusters_after_test
+        "Завершить игру":
+            jump end_conversation
+
+# Показ всех кластеров после теста
+label show_all_clusters_after_test:
+    show coach at left
+    if player_gender == "guy":
+        show guy at right
     else:
-        # Показываем выбранный кластер
-        call show_cluster_details(chosen_option) from _call_show_cluster_details_3
+        show girl at right
+    
+    coach "Отлично! Вот все доступные профессиональные кластеры Алтайского края."
+    coach "Выбери любой, чтобы узнать о нем подробнее:"
+    
+    label browse_clusters_loop:
+        # Вызываем функцию для показа меню со всеми кластерами
+        $ chosen_cluster = show_all_clusters_menu()
         
-        # После показа возвращаем к выбору других кластеров
-        coach "Хочешь рассмотреть другие направления или завершить тестирование?"
+        # Если пользователь выбрал "Выйти"
+        if chosen_cluster is None:
+            coach "Хорошо, завершаю просмотр кластеров."
+            jump end_conversation
+        
+        # Показываем информацию о выбранном кластере
+        call show_cluster_details(chosen_cluster) from _call_show_cluster_details_all
+        
+        # Предлагаем продолжить или выйти
+        coach "Хочешь посмотреть другой кластер или завершить?"
         
         menu:
-            "Рассмотреть другие направления":
-                jump choose_cluster_to_view
-            "Завершить тестирование":
-                coach "Хорошо, завершаю тестирование."
+            "Посмотреть другой кластер":
+                jump browse_clusters_loop
+            "Завершить просмотр":
+                coach "Хорошо, завершаю просмотр кластеров."
                 jump end_conversation
 
 # Показ детальной информации о кластере

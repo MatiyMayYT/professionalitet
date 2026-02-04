@@ -1,14 +1,4 @@
-﻿# script.rpy — основной файл сценария
-
-# ============================================
-# ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ОТЛАДКИ
-# ============================================
-# ЗАКОММЕНТИРУЙ эту строку, чтобы ВЫКЛЮЧИТЬ отладку
-# РАСКОММЕНТИРУЙ эту строку, чтобы ВКЛЮЧИТЬ отладку
-define DEBUG_MODE = False
-# ============================================
-
-# Импортируем данные о кластерах
+﻿# Импортируем данные о кластерах
 init python:
     # Проверяем, загружены ли кластеры
     if 'clusters' not in globals():
@@ -34,6 +24,68 @@ init python:
                     result += ", "
             result += item
         return result
+    # Функция для показа меню со всеми кластерами с прокруткой
+    def show_all_clusters_menu_with_pages():
+        """
+        Показывает меню со всеми кластерами с постраничной прокруткой
+        """
+        # Создаем список всех кластеров
+        all_clusters = list(clusters.keys())
+        
+        # Сортируем по алфавиту
+        all_clusters.sort()
+        
+        # Настройки пагинации
+        items_per_page = 5
+        current_page = 0
+        total_pages = (len(all_clusters) + items_per_page - 1) // items_per_page
+        
+        # Основной цикл пагинации
+        while True:
+            # Рассчитываем элементы для текущей страницы
+            start_index = current_page * items_per_page
+            end_index = min(start_index + items_per_page, len(all_clusters))
+            page_clusters = all_clusters[start_index:end_index]
+            
+            # Создаем варианты меню для текущей страницы
+            menu_items = []
+            
+            for cluster_key in page_clusters:
+                # Получаем короткое имя кластера
+                short_name = get_cluster_short_name(cluster_key)
+                menu_items.append((f"{short_name}", cluster_key))
+            
+            # Добавляем элементы навигации
+            if current_page > 0:
+                menu_items.append(("◀ Назад", "prev_page"))
+            
+            if current_page < total_pages - 1:
+                menu_items.append(("Вперед ▶", "next_page"))
+            
+            menu_items.append(("Выйти из меню", "exit"))
+            
+            # Показываем заголовок с номером страницы
+            title = f"Все кластеры (страница {current_page + 1} из {total_pages})"
+            
+            # Показываем меню
+            chosen = renpy.display_menu(menu_items, title=title)
+            
+            # Обрабатываем выбор
+            if chosen == "exit":
+                return None
+            elif chosen == "prev_page":
+                current_page -= 1
+            elif chosen == "next_page":
+                current_page += 1
+            else:
+                return chosen
+    
+    # Функция-обертка для обратной совместимости
+    def show_all_clusters_menu():
+        """
+        Показывает меню со всеми кластерами (с прокруткой)
+        """
+        return show_all_clusters_menu_with_pages()
 
 # Переменные для игрока
 default player_gender = "guy"  # или "girl"
@@ -53,10 +105,6 @@ label start:
         "Ошибка: данные о кластерах не загружены."
         "Пожалуйста, убедитесь, что файл clusters.rpy существует."
         return
-
-    # ПРОВЕРКА РЕЖИМА ОТЛАДКИ
-    if DEBUG_MODE:
-        jump debug_menu
     
     # Музыка на фоне
     play music "audio/Gimn.mp3"
@@ -73,34 +121,6 @@ label start:
         "Девушка":
             $ player_gender = "girl"
             jump choose_girl
-
-
-label debug_menu:
-    scene bg
-    show coach at center with dissolve
-    
-    coach "Режим отладки активирован!"
-    coach "Выбери, что ты хочешь сделать:"
-    
-    menu:
-        "Пройти обычный тест (игровой режим)":
-            coach "Хорошо, запускаю обычный тест..."
-            # Отключаем отладку на время теста
-            $ temp_debug = DEBUG_MODE
-            $ DEBUG_MODE = False
-            jump start_test
-        
-        "Войти в режим отладки (выбор любого кластера)":
-            coach "Запускаю режим отладки..."
-            jump debug_mode
-        
-        "Быстрая отладка (посмотреть один кластер)":
-            coach "Запускаю быструю отладку..."
-            jump quick_debug
-        
-        "Выйти из игры":
-            coach "До свидания!"
-            return
 
 # Экран с мальчиком
 label choose_guy: 
@@ -162,8 +182,6 @@ label meeting_with_coach:
     
     # Переход к выбору кластера (вместо теста)
     jump start_test
-
-# Экран выбора кластера (заглушка вместо теста)
 
 # Показ информации о выбранном кластере
 label show_cluster_info:
